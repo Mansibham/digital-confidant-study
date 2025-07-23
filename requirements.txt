@@ -1,4 +1,5 @@
-streamlit
-google-generativeai
-google-cloud-firestore
-cohere
+streamlit>=1.28.0
+google-generativeai>=0.3.0
+google-cloud-firestore>=2.11.0
+cohere>=4.21.0
+requests>=2.31.0
