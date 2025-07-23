@@ -1,39 +1,41 @@
-# digital-confidant-study
-AI Chatbot A/B Testing for Masters Dissertation
+# Digital Confidant - A/B Testing Study
+
 An AI chatbot study comparing non-directive vs directive therapeutic approaches for a Masters dissertation.
-Study Design
-Between-subjects A/B testing:
 
-Condition A (Non-directive): Empathetic listening and reflection
-Condition B (Directive): Practical coping suggestions and guidance
+## Study Design
 
-Deployment
-Participant Access:
+**Between-subjects A/B testing:**
 
-Main URL: https://your-app-name.streamlit.app
+-   **Condition A (Non-directive)**: Empathetic listening and reflection
+-   **Condition B (Directive)**: Practical coping suggestions and guidance
 
-Enter assigned participant code (P001A, P002A, etc.)
+## Deployment
 
-Researcher Access:
+**Participant Access:**
 
-Research Dashboard: https://your-app-name.streamlit.app?researcher=true
+-   Main URL: `https://your-app-name.streamlit.app`
+-   Enter assigned participant code (P001A, P002A, etc.)
 
-Alternative: https://your-app-name.streamlit.app?page=research
+**Researcher Access:**
 
+-   Research Dashboard: `https://your-app-name.streamlit.app?researcher=true`
+-   Alternative: `https://your-app-name.streamlit.app?page=research`
+-   Or enter "RESEARCHER" as participant code
 
-Setup Requirements
+## Setup Requirements
 
-Google Cloud Firestore database
-Google Gemini AI API key
-Cohere API key
-Streamlit Cloud deployment
+1.  Google Cloud Firestore database
+2.  Google Gemini AI API key
+3.  Cohere API key
+4.  Streamlit Cloud deployment
 
-Privacy & Ethics
+## Privacy & Ethics
 
-Anonymous participant codes only
-No personal information stored
-Encrypted data transmission
-Research ethics approval obtained
+-   Anonymous participant codes only
+-   No personal information stored
+-   Encrypted data transmission
+-   Research ethics approval obtained
 
+----------
 
-Masters Dissertation Research Project - 2025
+_Masters Dissertation Research Project - 2025_
