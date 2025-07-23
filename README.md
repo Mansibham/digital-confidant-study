@@ -11,13 +11,15 @@ Deployment
 Participant Access:
 
 Main URL: https://your-app-name.streamlit.app
+
 Enter assigned participant code (P001A, P002A, etc.)
 
 Researcher Access:
 
 Research Dashboard: https://your-app-name.streamlit.app?researcher=true
+
 Alternative: https://your-app-name.streamlit.app?page=research
-Or enter "RESEARCHER" as participant code
+
 
 Setup Requirements
 
