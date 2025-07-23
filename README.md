@@ -1,6 +1,6 @@
 # Digital Confidant - A/B Testing Study
 
-An AI chatbot study comparing non-directive vs directive therapeutic approaches for a Masters dissertation.
+An AI chatbot study comparing non-directive vs directive therapeutic approaches for a Master's dissertation.
 
 ## Study Design
 
@@ -13,14 +13,12 @@ An AI chatbot study comparing non-directive vs directive therapeutic approaches 
 
 **Participant Access:**
 
--   Main URL: `https://your-app-name.streamlit.app`
+-   Main URL: `https://mindreflect.streamlit.app/`
 -   Enter assigned participant code (P001A, P002A, etc.)
 
 **Researcher Access:**
 
--   Research Dashboard: `https://your-app-name.streamlit.app?researcher=true`
--   Alternative: `https://your-app-name.streamlit.app?page=research`
--   Or enter "RESEARCHER" as participant code
+-   Research Dashboard: `https://mindreflect.streamlit.app/?researcher=true`
 
 ## Setup Requirements
 
