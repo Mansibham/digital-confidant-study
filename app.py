@@ -59,13 +59,46 @@ def inject_css():
     <style>
         /* Main app background */
         .stApp {
-            background-color: #F7FAF9 !important;
+            background-color: #ffffff !important;
             min-height: 100vh;
         }
         
-        /* Hide default streamlit elements */
-        .stDeployButton, #MainMenu, footer, header {
-            visibility: hidden;
+        /* Breathing circle - changed from gradient to solid */
+        .breathing-circle {
+            width: min(100px, 25vw);
+            height: min(100px, 25vw);
+            border-radius: 50%;
+            background: #D9EFF8;
+            margin: 0 auto 2rem;
+            animation: breathe 4s ease-in-out infinite;
+        }
+        
+        /* User message - changed from gradient to solid */
+        .user-message {
+            background: #D9EFF8;
+            color: #2c3e50;
+            margin-left: auto;
+            margin-right: 0;
+        }
+        
+        /* Buttons - changed from gradient to solid */
+        .stButton > button {
+            background: #D9EFF8 !important;
+            color: #2c3e50 !important;
+            border: 1px solid #cce7e7 !important;
+            transition: all 0.3s ease !important;
+        }
+        
+        .stButton > button:hover {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 4px 12px rgba(224, 242, 242, 0.3) !important;
+            opacity: 0.9 !important;
+        }
+        
+        /* Style primary buttons */
+        .stButton > [data-baseweb="button"][kind="primary"] {
+            background: #D9EFF8 !important;
+            border: 1px solid #cce7e7 !important;
         }
         
         /* Responsive container */
@@ -97,16 +130,6 @@ def inject_css():
             line-height: 1.6;
         }
         
-        /* Breathing circle - responsive */
-        .breathing-circle {
-            width: min(100px, 25vw);
-            height: min(100px, 25vw);
-            border-radius: 50%;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            margin: 0 auto 2rem;
-            animation: breathe 4s ease-in-out infinite;
-        }
-        
         /* Chat messages - responsive */
         .chat-message {
             padding: min(1rem, 3vw);
@@ -116,44 +139,12 @@ def inject_css():
             word-wrap: break-word;
         }
         
-        .user-message {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            margin-left: auto;
-            margin-right: 0;
-        }
-        
         .assistant-message {
             background: #f8f9fa;
             color: #2c3e50;
             border-left: 4px solid #667eea;
             margin-right: auto;
             margin-left: 0;
-        }
-        
-        /* Buttons - responsive */
-        .stButton > button {
-            width: 100%;
-            max-width: 600px;
-            margin: 0.5rem auto !important;
-            padding: min(1rem, 3vw) !important;
-            font-size: clamp(0.9rem, 2.5vw, 1rem) !important;
-            background: linear-gradient(135deg, #667eea, #764ba2) !important;  /* Purple gradient */
-            color: white !important;
-            border: none !important;
-            transition: all 0.3s ease !important;
-        }
-        
-        .stButton > button:hover {
-            transform: translateY(-2px) !important;
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2) !important;
-            opacity: 0.9 !important;
-        }
-        
-        /* Style primary buttons differently if needed */
-        .stButton > [data-baseweb="button"][kind="primary"] {
-            background: linear-gradient(135deg, #667eea, #764ba2) !important;
-            border: none !important;
         }
         
         /* Form fields - responsive */
@@ -187,7 +178,6 @@ def inject_css():
         }
     </style>
     """, unsafe_allow_html=True)
-
 inject_css()
 
 # --- Participant Assignment Logic ---
