@@ -193,7 +193,8 @@ BOT_PERSONALITIES = {
 # --- Styling ---
 def inject_css():
     st.markdown("""
-    <style>
+  <style>
+        /* Keep existing light mode styles */
         /* Main app background */
         .stApp {
             background-color: #ffffff !important;
@@ -313,6 +314,58 @@ def inject_css():
                 max-width: 95%;
             }
         }
+                 /* --- Dark Mode Styles (inside a media query) --- */
+        @media (prefers-color-scheme: dark) {
+            .stApp {
+                background-color: #0E1117 !important; /* Streamlit's default dark bg */
+            }
+            .welcome-title, .stTextInput > div > div > input, .assistant-message {
+                color: #FAFAFA !important; /* Light text for dark bg */
+            }
+            .welcome-subtitle {
+                color: #A0A0A0 !important; /* Lighter grey for subtitle */
+            }
+            .breathing-circle {
+                background: linear-gradient(135deg, #5A67D8, #805AD5); /* Slightly brighter gradient for dark mode */
+            }
+            .stButton > button {
+                background: rgba(90, 103, 216, 0.2) !important;
+                border: 1px solid rgba(90, 103, 216, 0.5) !important;
+                color: #FAFAFA !important;
+            }
+            .stButton > button:hover {
+                background: rgba(90, 103, 216, 0.3) !important;
+            }
+            .user-message {
+                background: linear-gradient(135deg, #5A67D8, #805AD5);
+                color: #FFFFFF;
+            }
+            .assistant-message {
+                background: #262730; /* Darker grey for assistant messages */
+                border-left: 4px solid #5A67D8;
+            }
+            /* Ensure sidebar text is visible */
+            .css-1d391kg p {
+                 color: #FAFAFA;
+            }
+        }
+
+        /* --- General Structural Styles (Unaffected by theme) --- */
+        .stDeployButton, #MainMenu, footer, header {
+            visibility: hidden;
+        }
+        .welcome-screen { text-align: center; padding: 4rem 2rem; }
+        .welcome-title { font-size: 2.5rem; margin-bottom: 1rem; font-weight: 300; }
+        .welcome-subtitle { font-size: 1.2rem; margin-bottom: 2rem; line-height: 1.6; }
+        .breathing-circle { width: 100px; height: 100px; border-radius: 50%; margin: 0 auto 2rem; animation: breathe 4s ease-in-out infinite; }
+        @keyframes breathe {
+            0%, 100% { transform: scale(1); opacity: 0.7; }
+            50% { transform: scale(1.1); opacity: 1; }
+        }
+        .stButton > button { padding: 1rem !important; border-radius: 15px !important; font-size: 1rem !important; margin: 0.5rem 0 !important; transition: all 0.3s ease !important; }
+        .stButton > button:hover { transform: translateY(-2px) !important; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2) !important; }
+        .chat-message { padding: 1rem; margin: 1rem 0; border-radius: 15px; max-width: 80%; }
+        .user-message { margin-left: auto; }
     </style>
     """, unsafe_allow_html=True)
 
