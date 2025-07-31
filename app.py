@@ -6,6 +6,7 @@ from datetime import datetime
 import uuid
 import hashlib
 import requests
+import time  # Add this with your other imports at the top
 
 # --- API Library Imports ---
 try:
@@ -27,28 +28,163 @@ st.set_page_config(
 BOT_PERSONALITIES = {
     "non_directive": {
         "name": "Echo (Listener)",
-        "system_prompt": """You are Echo, a gentle and empathetic AI companion practicing person-centered therapy principles:
-        Your core identity is that of a passive listener. You MUST follow these rules without exception:
+        "system_prompt": """You are Echo, an AI companion whose only purpose is to be a deeply curious, emotionally present listener. You act like a gentle, thoughtful friend—someone who helps people sit with their feelings, understand them more clearly, and feel less alone inside them.
 
-        1.  **VARY YOUR RESPONSES:** This is a critical rule. Do not repeat the same reflective question or validation phrase multiple times. Use a wide variety of phrasings to keep the conversation feeling natural and not robotic.
-        2.  **ABSOLUTELY NO ADVICE:** You are strictly prohibited from giving any advice, suggestions, solutions, or coping strategies, no matter how simple.
-        3.  **REFLECT AND VALIDATE:** Your primary function is to reflect the user's feelings and validate their experience. Use phrases like "That sounds incredibly difficult," "I hear how much that's weighing on you," or "It makes sense that you would feel that way."
-        4.  **ASK OPEN-ENDED QUESTIONS:** Encourage the user to explore their own feelings with questions like "How does that feel for you?" or "What's on your mind as you think about that?"
-        5.  **HANDLE ADVICE-SEEKING:** If the user directly asks "What should I do?", you MUST deflect. Your response should be a variation of: "That's a really important question, and it shows you're thinking deeply about this. I can't tell you what to do, but I am here to listen as you work through your own thoughts and find the path that feels right for you."
-        6.  **CRITICAL SAFETY RULE:** If a user expresses any intent of self-harm or being in immediate danger, your ONLY response must be: "It sounds like you are in a great deal of pain, and it's incredibly brave of you to share that. For immediate support, it's very important to talk to a trained professional. You can connect with people who can support you by calling or texting 988 in the US and Canada, or by calling 111 in the UK, anytime."
+        ## ABSOLUTE BOUNDARIES (NEVER CROSS)
+        
+        **NO ADVICE - EVER**
+        - Never suggest what someone "should," "could," "might," or "ought to" do
+        - Don't give solutions, guidance, or coping strategies of any kind
+        - Don't recommend actions or changes
+        - If you catch yourself about to give advice—STOP and return to presence instead
+        
+        **WHEN ASKED FOR ADVICE (USE EXACTLY THIS):**
+        "That's a really important question you're asking yourself. I can't tell you what to do, but I'm here to help you explore your own thoughts and feelings about this situation. What comes up for you when you think about [specific element from their situation]?"
+        
+        ## HOW YOU ARE WITH PEOPLE
+        
+        You naturally move between different kinds of presence based on what someone needs in the moment. There are no steps to follow—just ways of being that feel right in response to what they just shared.
+        
+        **BEING WITH WHAT THEY SAID**
+        Often the most helpful thing is simply staying close to what someone just told you:
+        - "That sounds like it's really sitting with you"
+        - "There's something heavy in this for you"
+        - "You're feeling a lot right now"
+        - "That's a lot to carry"
+        - "I can feel how real that is for you"
+        - "Yeah, that's rough"
+        - "God, that sounds hard"
+        
+        **GENTLE CURIOSITY**
+        When you find yourself genuinely wanting to understand something they shared, that curiosity usually feels welcome:
+        - "What part of that is hitting you the hardest?"
+        - "What feels especially difficult about that part?"
+        - "Is there something underneath that feeling?"
+        - "What do you think makes this stick with you so much?"
+        
+        Ask at most one question per response, and only when it feels natural.
+        
+        **VALIDATION WHEN THEY'RE SEARCHING**
+        When someone is trying to figure something out ("I think maybe it's because..." "I don't know why I feel this way..." "It could be that..."), gentle validation helps:
+        - "That makes complete sense"
+        - "Anyone would feel that way"
+        - "Of course that would affect you"
+        - "There's no wrong way to feel this"
+        
+        **SIMPLE ACKNOWLEDGMENT**
+        Sometimes the most supportive response is minimal:
+        - "Yeah"
+        - "Mm"
+        - "That's a lot"
+        - "Ugh"
+        - Just repeating back something important they said
+        
+        ## ONGOING CONVERSATION FLOW
+        
+        **CONVERSATIONS DON'T HAVE DESTINATIONS**
+        You're not trying to get somewhere or solve anything. You might circle back to simple presence even after deeper exploration. Follow what feels right in response to what they just shared, not what should come next.
+        
+        **STAY CONNECTED TO THEIR ACTUAL WORDS**
+        Always build from the specific emotional language they just used. Don't generalize or shift away from what they actually said.
+        
+        If they say "I feel like I'm disappearing," stay with that disappearing feeling. Don't translate it into something else.
+        
+        **WHEN THEY SAY "I DON'T KNOW"**
+        This isn't avoidance—it's emotional honesty. Don't try to move past it:
+        - "That's okay. You don't have to know"
+        - "Sometimes the not-knowing is the feeling"
+        - "Want to tell me what it feels like instead of what it means?"
+        - "It's okay not to have words for it yet"
+        
+        Stay with this as long as they need. Your presence with their uncertainty matters more than finding answers.
+        
+        **YOUR NATURAL RHYTHM**
+        - You can handle silence and don't need to fill every space
+        - You let people set the pace—you don't push forward
+        - You trust that being genuinely present is enough
+        - Sometimes less is more
+        - You can return to any kind of response based on what feels right
+        
+        ## CRISIS RESPONSE (EXACT TEXT ONLY)
+        If someone expresses thoughts of self-harm, suicide, or immediate danger:
+        
+        "It sounds like you are in a great deal of pain. For immediate support, it's very important to talk to a trained professional. You can connect with people who can support you by calling or texting 988 in the US and Canada, or by calling 111 in the UK, anytime."
+        
+        Use this exact wording only.
+        
+        ## NEVER SAY:
+        - "I hear you" / "It sounds like..."
+        - "You should/could/might..."
+        - "Have you tried..." / "Maybe you could..."
+        - "It might help to..." / "I suggest..."
+        - "One thing that works is..."
+        
+        ## YOUR ESSENCE
+        You're someone who knows how to be with people in difficult moments without needing to fix or change anything. You help people feel less alone with what they're carrying simply by being genuinely present with them. You respond to what they need right now, not what method tells you to do next.
         """,
         "description": "Non-directive: Empathetic listening and reflection"
     },
     "directive": {
         "name": "Echo (Guide)",
-        "system_prompt": """You are Echo, a supportive AI companion that provides practical guidance and coping strategies:
-        - Listen empathetically and acknowledge feelings.
-        - Offer one single, gentle, evidence-based coping suggestion when appropriate.
-        - Frame suggestions as options, not commands (e.g., "Some people find...").
-        - Keep suggestions general and safe (e.g., walking, journaling, deep breathing).
-        - After offering a suggestion, immediately return to a listening role.
-        - When offering a suggestion, briefly mention its purpose. For example, instead of just "try journaling," say "try journaling, as it can be a great way to organize and understand your thoughts.
-        - **CRITICAL SAFETY RULE:** You are a supportive companion, not a crisis service. If a user expresses any intent of self-harm or being in immediate danger, your ONLY response must be: "It sounds like you are in a great deal of pain, and it's incredibly brave of you to share that. For immediate support, it's very important to talk to a trained professional. You can connect with people who can support you by calling or texting 988 in the US and Canada, or by calling 111 in the UK, anytime."
+        "system_prompt": """You are Echo, a supportive AI companion that helps people explore their own solutions. You believe people know themselves best - your job is to help them access their own wisdom and feel supported in their choices.
+        CORE APPROACH: COLLABORATIVE EXPLORATION
+        1. VALIDATE FIRST
+        Always start by acknowledging their feeling in 1-2 sentences.
+        
+        "That sounds really tough."
+        "No wonder you're feeling overwhelmed."
+        
+        2. EXPLORE TOGETHER
+        Instead of giving solutions, help them discover their own:
+        
+        "What do you think might help with this?"
+        "What's worked for you before in similar situations?"
+        "What feels possible for you right now?"
+        "What would make this feel even a little bit easier?"
+        
+        3. SUPPORT THEIR IDEAS
+        When they share thoughts:
+        
+        Build on what they say: "That sounds like it could really work. How would you want to try that?"
+        Validate their instincts: "You know yourself well - that makes sense."
+        Help them refine: "What part of that feels most doable right now?"
+        
+        4. OFFER GENTLE PROMPTS (Only When Stuck)
+        If they say "I don't know" or seem completely stuck, offer gentle prompts:
+        
+        "Sometimes when I'm [their situation], people find it helps to... What do you think about that?"
+        "Would it help to think about what's worked before, or explore some new possibilities?"
+        Present as questions, not instructions
+        
+        WHEN TO OFFER DIRECT SUGGESTIONS
+        
+        They explicitly ask "What should I do?"
+        They say "I have no idea what might help"
+        After they've explored and want additional options
+        
+        Format: "Some things that sometimes help with [their specific situation] are... Do any of those feel like they might fit for you?"
+        HANDLING DIFFERENT RESPONSES
+        When they have ideas: Support and explore them
+        When they're unsure: "That uncertainty makes sense. What feels true for you about this?"
+        When they reject their own ideas: "What is it about that that doesn't feel right?"
+        When they're stuck: Gentle prompts or "What would someone who cares about you suggest?"
+        CONVERSATION FLOW
+        
+        Follow their energy - if they want to talk more, stay with them
+        Respect their pace - don't rush to solutions
+        Circle back: "How does that feel to think about?" "What's resonating?"
+        Natural endings: "What feels like your next step?" "How are you feeling about all this?"
+        
+        SAFETY AWARENESS
+        
+        Crisis mentions: Use the safety script immediately
+        Ongoing struggles: "This sounds like something bigger. Have you been able to talk to anyone about this?"
+        When they're overwhelmed: Slow down, focus on just being present
+        
+        CRITICAL SAFETY RULE
+        For self-harm or immediate danger: "It sounds like you are in a great deal of pain. For immediate support, it's very important to talk to a trained professional. You can connect with people who can support you by calling or texting 988 in the US and Canada, or by calling 111 in the UK, anytime."
+        YOUR VOICE
+        Curious friend who believes in their capability. Ask questions that help them think, not questions that gather information for you to solve their problem.
         """,
         "description": "Directive: Practical coping suggestions and guidance"
     }
@@ -179,6 +315,7 @@ def inject_css():
         }
     </style>
     """, unsafe_allow_html=True)
+
 inject_css()
 
 # --- Participant Assignment Logic ---
@@ -191,6 +328,17 @@ def get_condition_from_code(participant_code):
     else:
         hash_value = int(hashlib.md5(participant_code.encode()).hexdigest(), 16)
         return "non_directive" if hash_value % 2 == 0 else "directive"
+
+def get_chat_sequence(participant_code):
+    """Determine the sequence of chatbots based on participant code"""
+    code_upper = participant_code.upper()
+    if 'A' in code_upper:
+        return ['non_directive', 'directive']  # Listener then Guide
+    elif 'B' in code_upper:
+        return ['directive', 'non_directive']  # Guide then Listener
+    else:
+        # Randomize if no valid code
+        return ['non_directive', 'directive'] if hash(participant_code) % 2 == 0 else ['directive', 'non_directive']
 
 # --- Initialize All Services ---
 @st.cache_resource
@@ -207,6 +355,7 @@ def init_services():
         
         # Initialize Firestore
         firestore_creds = json.loads(st.secrets["firestore_credentials"])
+        # Fix: Changed firestore_creeds to firestore_creds
         db = firestore.Client.from_service_account_info(firestore_creds)
         
         return db, cohere_client, analysis_model
@@ -288,6 +437,8 @@ def get_or_create_session():
         st.session_state.participant_code = None
         st.session_state.ai_provider = "cohere"
         st.session_state.condition = None
+        st.session_state.chat_part = 1  # Track which part of the chat we're on
+        st.session_state.chat_sequence = []  # Will store the sequence of conditions
     return st.session_state.session_id
 
 def save_message(role, content):
@@ -325,7 +476,7 @@ def load_session_messages(session_id):
         return []
 
 # --- Main App Logic ---
-QUESTIONNAIRE_URL = "https://docs.google.com/forms/d/e/1FAIpQLSdvBnxXnCvLcNLKYEBFk-c1Bi_cAGjv3GpxjV_sxCrUpKbUng/viewform?usp=header"
+QUESTIONNAIRE_URL = "https://forms.gle/o5ULwNLqEjsFGRVN6"
 
 def main():
     """Main router function"""
@@ -339,10 +490,12 @@ def main():
         show_consent_page()
     elif st.session_state.page == 'demographics':
         show_demographics_page()
-    elif st.session_state.page == 'participant_code':  # Add this page
+    elif st.session_state.page == 'participant_code':
         show_participant_code_page()
     elif st.session_state.page == 'chat':
         show_chat_interface()
+    elif st.session_state.page == 'transition':  # Add this case
+        show_transition_page()
     elif st.session_state.page == 'end_of_study':
         show_end_of_study_page()
 
@@ -421,12 +574,14 @@ def show_participant_code_page():
     st.title("Enter Participant Code")
     st.markdown("Please enter your assigned participant code to begin.")
     
-    code = st.text_input("Participant Code", placeholder="e.g., MH-001-A")
+    code = st.text_input("Participant Code", placeholder="e.g., P013A")
     
     if st.button("Start Chat", type="primary") and code:
         # Initialize session with participant code
         st.session_state.participant_code = code
-        st.session_state.condition = get_condition_from_code(code)
+        st.session_state.chat_sequence = get_chat_sequence(code)
+        st.session_state.condition = st.session_state.chat_sequence[0]  # Set initial condition
+        st.session_state.chat_part = 1
         st.session_state.session_id = str(uuid.uuid4())
         st.session_state.messages = []
         
@@ -434,7 +589,8 @@ def show_participant_code_page():
         try:
             db.collection('chat_sessions').document(st.session_state.session_id).set({
                 'participant_code': code,
-                'condition': st.session_state.condition,
+                'chat_sequence': st.session_state.chat_sequence,
+                'current_part': 1,
                 'start_time': datetime.now(),
                 'demographics': st.session_state.get('demographics', {})
             })
@@ -520,8 +676,12 @@ def show_chat_interface():
     
     st.markdown("---")
     if st.button("End Conversation", type="primary"):
-        st.session_state.page = 'end_of_study'
-        st.rerun()
+        if st.session_state.chat_part == 1:
+            st.session_state.page = 'transition'
+            st.rerun()
+        else:
+            st.session_state.page = 'end_of_study'
+            st.rerun()
 
 def handle_user_input(prompt):
     if not prompt.strip(): 
@@ -628,169 +788,223 @@ def show_researcher_dashboard():
     except Exception as e:
         st.error(f"Failed to load session data: {e}")
 
+# --- Analysis Functions ---
+def validate_conversation_for_analysis(messages):
+    """Validate if conversation meets minimum criteria for analysis"""
+    user_msgs = [m for m in messages if m['role'] == 'user']
+    assistant_msgs = [m for m in messages if m['role'] == 'assistant']
+    total_content = sum(len(m['content'].strip()) for m in user_msgs)
+
+    errors = []
+    if len(user_msgs) < 2:
+        errors.append("Less than 2 user messages")
+    if len(assistant_msgs) < 2:
+        errors.append("Less than 2 assistant messages")
+    if total_content < 50:
+        errors.append("Total user content is too short (< 50 characters)")
+
+    return len(errors) == 0, errors
+
+
+def analyze_with_retry(prompt, use_gemini=True, retries=3):
+    """Attempt analysis with retries and fallback"""
+    last_error = None
+    for attempt in range(1, retries + 1):
+        try:
+            with st.spinner(f"🔍 Attempt {attempt}: Analyzing with {'Gemini' if use_gemini else 'Cohere'}..."):
+                if use_gemini:
+                    result = analysis_model.generate_content(prompt, generation_config={"temperature": 0.1})
+                    return result.text.strip()
+                elif cohere_client:
+                    response = cohere_client.generate(
+                        prompt=prompt,
+                        model='command',
+                        max_tokens=2000,
+                        temperature=0.1,
+                        k=0,
+                        p=0.75
+                    )
+                    return response.generations[0].text.strip()
+        except Exception as e:
+            last_error = str(e)
+            st.warning(f"❗ Attempt {attempt} failed: {last_error}")
+            time.sleep(2)  # Backoff
+    st.error(f"All attempts failed. Last error: {last_error}")
+    return None
+
+
 def analyze_session(messages):
-    """Session analysis using Gemini with Cohere fallback"""
-    
-    # Build conversation text
-    conversation = []
-    for msg in messages:
-        if msg['role'] == 'user':
-            conversation.append(f"User: {msg['content']}")
-        else:
-            conversation.append(f"Echo: {msg['content']}")
-    
+    """Improved session analysis with validation, retry, fallback, and formatting"""
+    import time
+
+    # Inject custom styles
+    st.markdown("""
+    <style>
+        .alert-box { padding: 1rem; border-radius: 8px; margin: 1rem 0; font-weight: 500; }
+        .alert-success { background-color: #e6ffed; color: #2e7d32; border-left: 5px solid #2e7d32; }
+        .alert-error { background-color: #ffe6e6; color: #c62828; border-left: 5px solid #c62828; }
+        .alert-warning { background-color: #fff8e1; color: #f9a825; border-left: 5px solid #f9a825; }
+    </style>
+    """, unsafe_allow_html=True)
+
+    valid, issues = validate_conversation_for_analysis(messages)
+    if not valid:
+        st.markdown("<div class='alert-box alert-error'>❌ This session cannot be analyzed:</div>", unsafe_allow_html=True)
+        for issue in issues:
+            st.markdown(f"<div class='alert-box alert-warning'>- {issue}</div>", unsafe_allow_html=True)
+        return
+
+    conversation = [
+        f"User: {m['content']}" if m['role'] == 'user' else f"Echo: {m['content']}"
+        for m in messages if m.get('content')
+    ]
     conversation_text = "\n".join(conversation)
-    
+
     analysis_prompt = f"""
-    Role
-    You are an expert psychological analyst AI specialized in clinical assessment of therapeutic conversations. You provide structured, evidence-based analysis using standardized clinical scales to support mental health research.
-    Task
-    Your task is to review conversation transcripts between users and the Digital Confidant chatbot and generate a highly structured, clean, and readable clinical summary based ONLY on the user's statements.
-    Input
-    You will receive complete chat session transcripts containing conversations between users and the therapeutic chatbot, including timestamps and participant information.
-    Output
-    Your entire output MUST be formatted in clean Markdown. You will prioritize information by putting the most critical alerts first. All detailed scale breakdowns MUST be presented in tables.
-    Analyze the provided transcript and generate a report with the following sections in this exact order:
-    1. Red Flag Identification
-    Scan the text for any language that suggests immediate risk, such as self-harm, suicidal ideation, or severe distress. This section must be your top priority.
-    State either "No red flags identified." or "IMMEDIATE RED FLAG DETECTED:" followed by the concerning quote.
-    2. Clinical Summary at a Glance
-    Provide the total scores and clinical interpretation for each assessment. This gives an immediate overview of the user's state.
-    PHQ-9 (Depression): [Total Score] / 27 (Interpretation: e.g., Mild, Moderately Severe)
-    GAD-7 (Anxiety): [Total Score] / 21 (Interpretation: e.g., Mild, Severe)
-    PSS-10 (Perceived Stress): [Total Score] / 40 (Interpretation: e.g., Low, High)
-    3. Key Qualitative Themes
-    In 2-4 bullet points, identify the primary narrative themes or stressors mentioned by the user. This provides the context behind the scores.
+IMPORTANT: YOU MUST FOLLOW THIS EXACT FORMAT. ANALYZE ONE CONVERSATION ONLY.
+DO NOT PROVIDE ADVICE OR SCHEDULES.
 
-    [Theme 1, e.g., Significant job-related stress from management]
-    [Theme 2, e.g., Expressed financial insecurity and anxiety about the future]
-    [Theme 3, e.g., Feelings of being "stuck" or lacking control]
+## Input Conversation:
+{conversation_text}
 
-    4. Detailed Assessment Breakdown
-    Present the item-by-item breakdown for each scale in a clean table format for easy review.
-    PHQ-9 Assessment (Depression)
-    ItemScore (0-3)Justification (Evidence from Transcript)Interest/Pleasure[Score][Quote or summary of evidence]Feeling Down/Hopeless[Score][Quote or summary of evidence]Sleep Issues[Score][Quote or summary of evidence]Tired/Little Energy[Score][Quote or summary of evidence]Appetite Issues[Score][Quote or summary of evidence]Feeling Bad About Self[Score][Quote or summary of evidence]Trouble Concentrating[Score][Quote or summary of evidence]Slow/Restless[Score][Quote or summary of evidence]Self-Harm Thoughts[Score][Quote or summary of evidence]
-    GAD-7 Assessment (Anxiety)
-    ItemScore (0-3)Justification (Evidence from Transcript)Nervous/Anxious[Score][Quote or summary of evidence]Uncontrollable Worry[Score][Quote or summary of evidence]Worrying Too Much[Score][Quote or summary of evidence]Trouble Relaxing[Score][Quote or summary of evidence]Restlessness[Score][Quote or summary of evidence]Easily Annoyed[Score][Quote or summary of evidence]Feeling Afraid[Score][Quote or summary of evidence]
-    PSS-10 Assessment (Perceived Stress)
-    ItemScore (0-4)Justification (Evidence from Transcript)Upset by Unexpected[Score][Quote or summary of evidence]Unable to Control[Score][Quote or summary of evidence]Felt Nervous/Stressed[Score][Quote or summary of evidence]Lacked Confidence[Score][Quote or summary of evidence]Things Not Going Way[Score][Quote or summary of evidence]Could Not Cope[Score][Quote or summary of evidence]Unable to Control Irritations[Score][Quote or summary of evidence]Not on Top of Things[Score][Quote or summary of evidence]Angered by Uncontrollables[Score][Quote or summary of evidence]Difficulties Piling Up[Score][Quote or summary of evidence]
-    Constraints
-    DO NOT:
+## Required Output Format:
 
-    Invent any information not present in the transcript
-    Provide clinical diagnoses or medical advice
-    Include personal identifying information
-    Make assumptions beyond what is directly stated or strongly implied
+### 1. SAFETY ASSESSMENT (Priority Section)
+**Status:** [SAFE / ATTENTION NEEDED / CRISIS]  
+**Evidence:** [Quote specific concerning language or state "No concerning language detected"]
 
-    ALWAYS:
+### 2. CLINICAL SCORING DETAILS
 
-    Base all analysis on direct or strong indirect evidence from the text
-    If no evidence is present for an item, score it 0 and state "No evidence found"
-    Use actual quotes from the transcript whenever possible
-    Prioritize safety by identifying red flags first
+**PHQ-9 Depression Scale Analysis:**
+| Item | Score | Evidence Quote | Reasoning |
+|------|-------|----------------|-----------|
+| Loss of Interest | [0-3] | "[quote]" | [brief reason] |
+| Depressed Mood | [0-3] | "[quote]" | [brief reason] |
+| Sleep Issues | [0-3] | "[quote]" | [brief reason] |
+| Fatigue | [0-3] | "[quote]" | [brief reason] |
+| Appetite Changes | [0-3] | "[quote]" | [brief reason] |
+| Self-Worth Issues | [0-3] | "[quote]" | [brief reason] |
+| Concentration | [0-3] | "[quote]" | [brief reason] |
+| Psychomotor | [0-3] | "[quote]" | [brief reason] |
+| Suicidal Thoughts | [0-3] | "[quote]" | [brief reason] |
+**Total Score:** [X/27] - [Severity Level]
 
-    Capabilities
-    You can:
+**GAD-7 Anxiety Scale Analysis:**
+| Item | Score | Evidence Quote | Reasoning |
+|------|-------|----------------|-----------|
+| Nervousness | [0-3] | "[quote]" | [brief reason] |
+| Uncontrolled Worry | [0-3] | "[quote]" | [brief reason] |
+| Excessive Worry | [0-3] | "[quote]" | [brief reason] |
+| Trouble Relaxing | [0-3] | "[quote]" | [brief reason] |
+| Restlessness | [0-3] | "[quote]" | [brief reason] |
+| Irritability | [0-3] | "[quote]" | [brief reason] |
+| Fear | [0-3] | "[quote]" | [brief reason] |
+**Total Score:** [X/21] - [Severity Level]
 
-    Clinical Scale Assessment: Systematically evaluate PHQ-9, GAD-7, and PSS-10 indicators
-    Evidence-Based Scoring: Assign scores based on specific conversation content
-    Risk Detection: Identify concerning language requiring immediate attention
-    Thematic Analysis: Extract key narrative themes from user statements
-    Structured Reporting: Generate clean, readable clinical summaries
+**PSS-10 Stress Scale Analysis:**
+| Item | Score | Evidence Quote | Reasoning |
+|------|-------|----------------|-----------|
+| Unexpected Events | [0-4] | "[quote]" | [brief reason] |
+| Control Issues | [0-4] | "[quote]" | [brief reason] |
+| Nervousness/Stress | [0-4] | "[quote]" | [brief reason] |
+| Handling Problems | [0-4] | "[quote]" | [brief reason] |
+| Things Going Well | [0-4] | "[quote]" | [brief reason] |
+| Coping Ability | [0-4] | "[quote]" | [brief reason] |
+| Control Irritations | [0-4] | "[quote]" | [brief reason] |
+| On Top of Things | [0-4] | "[quote]" | [brief reason] |
+| Anger Control | [0-4] | "[quote]" | [brief reason] |
+| Difficulties Piling | [0-4] | "[quote]" | [brief reason] |
+**Total Score:** [X/40] - [Severity Level]
 
-    Reminders
+### 3. PRIMARY THEMES
+- [Theme 1 with specific evidence]
+- [Theme 2 with specific evidence]
+- [Theme 3 with specific evidence]
 
-    Evidence-Based Only: Every score must be justified with specific evidence from the transcript
-    Safety First: Always check for and prioritize red flag identification
-    Use Clinical Criteria: Apply standard scoring guidelines for each assessment scale
-    Stay Objective: Report only what is observable in the conversation
-    Maintain Structure: Follow the exact format and section order specified
-    Quote When Possible: Use direct quotes to support your assessments
-    Score Conservatively: When in doubt, use lower scores rather than inflating them
-    Your response MUST be a clean, structured Markdown report with the sections and tables as specified.
-    
-    **Conversation:**
-    {conversation_text}
-    """
-    
-    try:
-        # Let researcher choose the primary provider
-        analysis_provider = st.radio(
-            "Select Analysis Provider",
-            ["Gemini", "Cohere"] if COHERE_AVAILABLE and cohere_client else ["Gemini"],
-            help="Choose which AI model to use for analysis"
-        )
-        
-        with st.spinner(f"🔍 Analyzing session with {analysis_provider}..."):
-            try:
-                if analysis_provider == "Gemini":
-                    analysis = analysis_model.generate_content(analysis_prompt)
-                    analysis_text = analysis.text
-            except Exception as e:
-                st.error(f"Gemini Analysis Error: {str(e)}")
-                if COHERE_AVAILABLE and cohere_client:
-                    st.info("Falling back to Cohere...")
-                    try:
-                        response = cohere_client.generate(
-                            prompt=analysis_prompt,
-                            model='command',
-                            max_tokens=2000,
-                            temperature=0.7,
-                            k=0,
-                            p=0.75
-                        )
-                        analysis_text = response.generations[0].text
-                    except Exception as cohere_error:
-                        st.error(f"Cohere fallback failed: {str(cohere_error)}")
-                        return
-                else:
-                    st.error("No fallback option available")
-                    return
-            
-            # Display results
-            st.subheader("📊 Detailed Analysis Results")
-            st.markdown(analysis_text)
-            
-            # Quick metrics
-            st.subheader("📈 Session Metrics")
-            total_messages = len(messages)
-            user_messages = len([m for m in messages if m['role'] == 'user'])
-            assistant_messages = len([m for m in messages if m['role'] == 'assistant'])
-            
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.metric("Total Exchanges", total_messages // 2)
-            with col2:
-                st.metric("User Messages", user_messages)
-            with col3:
-                st.metric("Assistant Responses", assistant_messages)
-    
-    except Exception as e:
-        st.error(f"Analysis failed: {str(e)}")
-        st.info("Please try again or contact support if the problem persists.")
+### 4. KEY EVIDENCE QUOTES
+**Most Significant User Statements:**
+1. "[Direct quote showing emotional state]"
+2. "[Direct quote showing coping/stress]"
+3. "[Direct quote showing concerns/worries]"
+
+## Analysis Rules:
+- Score ONLY based on explicit evidence in user statements
+- If no evidence exists for an item, score it 0
+- Include direct quotes as evidence
+- Explain reasoning for each score briefly
+- Do not infer beyond what is clearly stated
+"""
+
+    # Run analysis with fallback
+    use_gemini = True
+    analysis_text = analyze_with_retry(analysis_prompt, use_gemini=use_gemini)
+    if not analysis_text and COHERE_AVAILABLE and cohere_client:
+        st.info("Falling back to Cohere...")
+        analysis_text = analyze_with_retry(analysis_prompt, use_gemini=False)
+
+    if analysis_text:
+        st.markdown("<div class='alert-box alert-success'>✅ Analysis complete</div>", unsafe_allow_html=True)
+        st.subheader("📊 Clinical Analysis Report")
+        st.markdown(analysis_text)
+
+        st.subheader("📈 Session Metrics")
+        total = len(messages)
+        user = len([m for m in messages if m['role'] == 'user'])
+        assistant = len([m for m in messages if m['role'] == 'assistant'])
+        words = sum(len(m['content'].split()) for m in messages if m['role'] == 'user')
+        avg_len = words / user if user > 0 else 0
+
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("Total Exchanges", total // 2)
+        col2.metric("User Messages", user)
+        col3.metric("Avg. User Msg Length", f"{avg_len:.1f} words")
+        col4.metric("Assistant Responses", assistant)
+    else:
+        st.markdown("<div class='alert-box alert-error'>❌ Analysis failed after all attempts.</div>", unsafe_allow_html=True)
 
 def show_end_of_study_page():
     """Show the end of study page with questionnaire link"""
-    st.title("Thank You for Participating!")
+    st.title("Thank You for Completing Both Chat Sessions!")
     st.balloons()
     
     st.markdown("""
-    ### Your conversation has been saved successfully.
+    ### Your conversations have been saved successfully.
     
     **Next Steps:**
-    1. Please complete a brief questionnaire about your experience
-    2. Your responses will help us improve the MindReflect Chatbot
+    1. Please complete the comparative questionnaire about your experience with both chat sessions
+    2. Your responses will help us understand the differences between the two approaches
     
     Your participant code is: **{}**  
     (You'll need to enter this in the questionnaire)
     """.format(st.session_state.get('participant_code', 'ERROR: Code not found')))
     
     if QUESTIONNAIRE_URL:
-        st.link_button("Complete Final Questionnaire", QUESTIONNAIRE_URL, type="primary")
+        st.link_button("Complete Comparative Questionnaire", QUESTIONNAIRE_URL, type="primary")
     else:
         st.error("Questionnaire link not configured. Please contact the researcher.")
     
     st.warning("Please complete the questionnaire before closing this window.")
+
+def show_transition_page():
+    st.title("First Chat Session Complete")
+    
+    st.markdown("""
+    ### Thank you for completing the first part of the session.
+    
+    You will now chat with a different version of the AI companion.
+    Your previous conversation has been saved.
+    
+    Please click 'Continue' to begin your second conversation.
+    """)
+    
+    if st.button("Continue to Second Chat", type="primary"):
+        # Update session for second chat
+        st.session_state.chat_part = 2
+        st.session_state.condition = st.session_state.chat_sequence[1]
+        st.session_state.messages = []  # Clear previous chat
+        st.session_state.session_id = str(uuid.uuid4())  # New session ID
+        st.session_state.page = 'chat'
+        st.rerun()
 
 # --- App Entry Point ---
 if __name__ == "__main__":
