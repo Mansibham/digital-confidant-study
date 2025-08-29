@@ -6,7 +6,8 @@ from datetime import datetime
 import uuid
 import hashlib
 import requests
-import time  # Add this with your other imports at the top
+import time 
+import pandas as pd  # Add this line
 
 # --- API Library Imports ---
 try:
@@ -528,6 +529,77 @@ def load_session_messages(session_id):
         st.error(f"Failed to load messages: {e}")
         return []
 
+# --- NEW: Data Fetching Helpers ---
+def _to_dt(x):
+    """Convert various timestamp formats to datetime"""
+    if isinstance(x, datetime): 
+        return x
+    try:
+        # handle Firestore Timestamp or ISO strings
+        return x.to_datetime() if hasattr(x, "to_datetime") else datetime.fromisoformat(str(x).replace("Z","+00:00"))
+    except Exception:
+        return None
+
+def fetch_sessions(db):
+    """Fetch all chat sessions from Firestore"""
+    try:
+        sessions_ref = db.collection("chat_messages").stream()
+        # Group messages by session_id to get unique sessions
+        session_data = {}
+        
+        for msg in sessions_ref:
+            data = msg.to_dict()
+            session_id = data.get('session_id')
+            
+            if session_id and session_id not in session_data:
+                session_data[session_id] = {
+                    'session_id': session_id,
+                    'participant_code': data.get('participant_code'),
+                    'condition': data.get('condition'),
+                    'start_time': _to_dt(data.get('timestamp'))
+                }
+        
+        return list(session_data.values())
+    except Exception as e:
+        st.error(f"Error fetching sessions: {e}")
+        return []
+
+def fetch_messages_for_session(db, session_id):
+    """Fetch and normalize messages for a specific session"""
+    try:
+        msgs_ref = db.collection("chat_messages")\
+                    .where("session_id", "==", session_id)\
+                    .order_by("timestamp")\
+                    .stream()
+        
+        msgs = []
+        for m in msgs_ref:
+            d = m.to_dict()
+            d["timestamp"] = _to_dt(d.get("timestamp"))
+            msgs.append(d)
+        return msgs
+    except Exception as e:
+        st.error(f"Error fetching messages for session {session_id}: {e}")
+        return []
+
+def compute_session_stats(messages):
+    """Return per-session stats used for inclusion + reporting"""
+    if not messages:
+        return dict(user_turns=0, assistant_turns=0, duration_min=0.0, total_msgs=0)
+    
+    users = [m for m in messages if m.get("role") == "user"]
+    bots = [m for m in messages if m.get("role") == "assistant"]
+    start = next((m["timestamp"] for m in messages if m.get("timestamp")), None)
+    end = next((m["timestamp"] for m in reversed(messages) if m.get("timestamp")), None)
+    dur_m = ((end - start).total_seconds() / 60.0) if (start and end) else 0.0
+    
+    return dict(
+        user_turns=len(users),
+        assistant_turns=len(bots),
+        total_msgs=len(messages),
+        duration_min=round(dur_m, 2),
+    )
+
 # --- Main App Logic ---
 QUESTIONNAIRE_URL = "https://forms.gle/o5ULwNLqEjsFGRVN6"
 
@@ -764,7 +836,6 @@ def show_researcher_dashboard():
     
     # Password protection
     password = st.text_input("Enter Password", type="password")
-    
     if password != st.secrets.get("APP_PASSWORD", ""):
         if password:
             st.error("Incorrect password")
@@ -772,74 +843,94 @@ def show_researcher_dashboard():
     
     st.success("✅ Access granted")
     
-    # Analytics
-    st.subheader("Session Overview")
+    # Add tabs for different views
+    tab1, tab2, tab3, tab4 = st.tabs([
+        "Session Overview", 
+        "Detailed Metrics", 
+        "Session Analysis",
+        "Persona Fidelity"
+    ])
     
-    try:
-        sessions = db.collection('chat_messages').stream()
-        session_data = {}
-        
-        for msg in sessions:
-            data = msg.to_dict()
-            session_id = data['session_id']
+    with tab1:
+        # Analytics
+        st.subheader("Session Overview")
+        try:
+            sessions = db.collection('chat_messages').stream()
+            session_data = {}
             
-            if session_id not in session_data:
-                session_data[session_id] = {
-                    'participant_code': data.get('participant_code', 'Unknown'),
-                    'messages': [],
-                    'start_time': data.get('timestamp'),
-                    'last_time': data.get('timestamp'),
-                    'ai_provider': data.get('ai_provider', 'unknown'),  # Set default value
-                    'condition': data.get('condition', 'unknown')  # Set default value
-                }
-            
-            session_data[session_id]['messages'].append(data)
-            if data.get('timestamp'):
-                session_data[session_id]['last_time'] = data.get('timestamp')
-        
-        st.write(f"**Total Sessions:** {len(session_data)}")
-        
-        # Provider stats with null checking
-        provider_stats = {}
-        condition_stats = {}
-        for session_id, data in session_data.items():
-            provider = data.get('ai_provider', 'unknown')  # Get with default value
-            condition = data.get('condition', 'unknown')   # Get with default value
-            
-            # Handle None values
-            provider = provider if provider else 'unknown'
-            condition = condition if condition else 'unknown'
-            
-            provider_stats[provider] = provider_stats.get(provider, 0) + 1
-            condition_stats[condition] = condition_stats.get(condition, 0) + 1
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            st.write("**AI Provider Distribution:**")
-            for provider, count in provider_stats.items():
-                st.write(f"- {provider if provider else 'unknown'}: {count} sessions")
-        
-        with col2:
-            st.write("**Condition Distribution:**")
-            for condition, count in condition_stats.items():
-                st.write(f"- {condition if condition else 'unknown'}: {count} sessions")
-        
-        # Session details
-        for session_id, data in session_data.items():
-            with st.expander(f"Session: {data['participant_code']} ({len(data['messages'])} messages) - {data['ai_provider'].title()} - {data['condition'].title()}"):
+            for msg in sessions:
+                data = msg.to_dict()
+                session_id = data['session_id']
                 
-                # Show conversation
-                st.write("**Conversation:**")
-                for msg in data['messages']:
-                    role = "🧑 User" if msg['role'] == 'user' else "🤖 Echo"
-                    st.write(f"{role}: {msg['content']}")
+                if session_id not in session_data:
+                    session_data[session_id] = {
+                        'participant_code': data.get('participant_code', 'Unknown'),
+                        'messages': [],
+                        'start_time': data.get('timestamp'),
+                        'last_time': data.get('timestamp'),
+                        'ai_provider': data.get('ai_provider', 'unknown'),
+                        'condition': data.get('condition', 'unknown')
+                    }
                 
-                # Analysis button
-                if st.button(f"Analyze Session {session_id[:8]}...", key=f"analyze_{session_id}"):
-                    analyze_session(data['messages'])
+                session_data[session_id]['messages'].append(data)
+                if data.get('timestamp'):
+                    session_data[session_id]['last_time'] = data.get('timestamp')
+            
+            st.write(f"**Total Sessions:** {len(session_data)}")
+            
+            # Show stats and session details
+            show_session_stats(session_data)
+            
+        except Exception as e:
+            st.error(f"Failed to load session data: {e}")
     
-    except Exception as e:
-        st.error(f"Failed to load session data: {e}")
+    with tab2:
+        show_metrics_dashboard()
+    
+    with tab3:
+        st.subheader("Session Analysis")
+        # Session analysis implementation
+        st.info("Select a session above to perform detailed analysis")
+
+    with tab4:
+        show_persona_fidelity_dashboard()
+
+def show_session_stats(session_data):
+    """Helper function to show session statistics"""
+    # Provider and condition stats
+    provider_stats = {}
+    condition_stats = {}
+    for session_id, data in session_data.items():
+        provider = data.get('ai_provider', 'unknown')
+        condition = data.get('condition', 'unknown')
+        
+        provider = provider if provider else 'unknown'
+        condition = condition if condition else 'unknown'
+        
+        provider_stats[provider] = provider_stats.get(provider, 0) + 1
+        condition_stats[condition] = condition_stats.get(condition, 0) + 1
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        st.write("**AI Provider Distribution:**")
+        for provider, count in provider_stats.items():
+            st.write(f"- {provider}: {count} sessions")
+    
+    with col2:
+        st.write("**Condition Distribution:**")
+        for condition, count in condition_stats.items():
+            st.write(f"- {condition}: {count} sessions")
+            
+    # Session details
+    for session_id, data in session_data.items():
+        with st.expander(f"Session: {data['participant_code']} ({len(data['messages'])} messages)"):
+            st.write("**Conversation:**")
+            for msg in data['messages']:
+                role = "🧑 User" if msg['role'] == 'user' else "🤖 Echo"
+                st.write(f"{role}: {msg['content']}")
+            
+            if st.button(f"Analyze Session {session_id[:8]}...", key=f"analyze_{session_id}"):
+                analyze_session(data['messages'])
 
 # --- Analysis Functions ---
 def validate_conversation_for_analysis(messages):
@@ -1015,6 +1106,122 @@ DO NOT PROVIDE ADVICE OR SCHEDULES.
     else:
         st.markdown("<div class='alert-box alert-error'>❌ Analysis failed after all attempts.</div>", unsafe_allow_html=True)
 
+def calculate_session_metrics(session_id):
+    """Calculate operational metrics for a session"""
+    try:
+        # Get all messages for the session, ordered by timestamp
+        messages = db.collection('chat_messages')\
+            .where('session_id', '==', session_id)\
+            .order_by('timestamp')\
+            .stream()
+        
+        message_list = [msg.to_dict() for msg in messages]
+        
+        if not message_list:
+            return None
+        
+        # Calculate session duration
+        start_time = message_list[0]['timestamp']
+        end_time = message_list[-1]['timestamp']
+        duration_minutes = (end_time - start_time).total_seconds() / 60
+        
+        # Calculate user turns and mean turn length
+        user_messages = [msg for msg in message_list if msg['role'] == 'user']
+        num_user_turns = len(user_messages)
+        
+        if num_user_turns > 0:
+            total_chars = sum(len(msg['content']) for msg in user_messages)
+            mean_turn_length = total_chars / num_user_turns
+        else:
+            mean_turn_length = 0
+        
+        return {
+            'session_duration': round(duration_minutes, 2),
+            'num_user_turns': num_user_turns,
+            'mean_turn_length': round(mean_turn_length, 2),
+            'total_exchanges': len(message_list) // 2
+        }
+    
+    except Exception as e:
+        st.error(f"Error calculating metrics for session {session_id}: {e}")
+        return None
+
+def get_all_session_metrics():
+    """Get metrics for all sessions"""
+    try:
+        # Get all unique session IDs
+        sessions = db.collection('chat_messages').stream()
+        session_ids = set()
+        session_data = {}
+        
+        for msg in sessions:
+            data = msg.to_dict()
+            session_id = data['session_id']
+            session_ids.add(session_id)
+            
+            if session_id not in session_data:
+                session_data[session_id] = {
+                    'participant_code': data.get('participant_code', 'Unknown'),
+                    'condition': data.get('condition', 'unknown')
+                }
+        
+        # Calculate metrics for each session
+        all_metrics = []
+        for session_id in session_ids:
+            metrics = calculate_session_metrics(session_id)
+            if metrics:
+                metrics['session_id'] = session_id
+                metrics['participant_code'] = session_data[session_id]['participant_code']
+                metrics['condition'] = session_data[session_id]['condition']
+                all_metrics.append(metrics)
+        
+        return all_metrics
+    
+    except Exception as e:
+        st.error(f"Error getting session metrics: {e}")
+        return []
+
+def show_metrics_dashboard():
+    """Show detailed metrics dashboard"""
+    st.subheader("📊 Session Metrics Dashboard")
+    
+    metrics = get_all_session_metrics()
+    
+    if not metrics:
+        st.warning("No session data available for metrics calculation.")
+        return
+    
+    # Convert to DataFrame for easier analysis
+    import pandas as pd
+    df = pd.DataFrame(metrics)
+    
+    # Overall statistics
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric("Total Sessions", len(df))
+    with col2:
+        st.metric("Avg Duration (min)", f"{df['session_duration'].mean():.1f}")
+    with col3:
+        st.metric("Avg User Turns", f"{df['num_user_turns'].mean():.1f}")
+    with col4:
+        st.metric("Avg Turn Length", f"{df['mean_turn_length'].mean():.0f} chars")
+    
+    # Condition comparison
+    st.subheader("Metrics by Condition")
+    condition_stats = df.groupby('condition').agg({
+        'session_duration': ['mean', 'std'],
+        'num_user_turns': ['mean', 'std'],
+        'mean_turn_length': ['mean', 'std']
+    }).round(2)
+    
+    st.dataframe(condition_stats)
+    
+    # Individual session details
+    st.subheader("Individual Session Details")
+    st.dataframe(df[['participant_code', 'condition', 'session_duration', 
+                    'num_user_turns', 'mean_turn_length', 'total_exchanges']])
+
 def show_end_of_study_page():
     """Show the end of study page with questionnaire link"""
     st.title("Thank You for Completing Both Chat Sessions!")
@@ -1059,10 +1266,169 @@ def show_transition_page():
         st.session_state.page = 'chat'
         st.rerun()
 
-# --- App Entry Point ---
+# --- Persona Fidelity Analysis ---
+def analyze_persona_fidelity(messages, condition):
+    """Analyze persona fidelity metrics based on lexicons and patterns"""
+    
+    # Filter messages by role
+    assistant_messages = [msg for msg in messages if msg['role'] == 'assistant']
+    user_messages = [msg for msg in messages if msg['role'] == 'user']
+    
+    if not assistant_messages or not user_messages:
+        return None
+    
+    # B.1.1 Advice Keywords
+    ADVICE_KEYWORDS = [
+        'should', 'could', 'might want to', 'try', 'suggest', 'recommend',
+        'have you considered', 'what if', 'maybe', 'perhaps you could'
+    ]
+    
+    # B.1.2 Empathy Markers
+    EMPATHY_MARKERS = [
+        'that sounds', 'i can hear', 'i understand', 'that must be',
+        'it seems like', 'i imagine', 'that feels', 'i sense',
+        'sounds difficult', 'sounds tough', 'sounds hard'
+    ]
+    
+    # B.1.3 Reflection Patterns
+    REFLECTION_PATTERNS = [
+        'what do you think', 'how does that feel', 'tell me more',
+        'what comes up', "what's that like", 'help me understand',
+        'what does that mean', 'say more about'
+    ]
+    
+    # Calculate metrics
+    total_turns = len(assistant_messages)
+    
+    # 1. Advice Ratio
+    advice_turns = sum(
+        1 for msg in assistant_messages
+        if any(keyword in msg['content'].lower() for keyword in ADVICE_KEYWORDS)
+    )
+    advice_ratio = advice_turns / total_turns if total_turns > 0 else 0
+    
+    # 2. Empathy Markers (raw count)
+    empathy_count = sum(
+        sum(1 for marker in EMPATHY_MARKERS if marker in msg['content'].lower())
+        for msg in assistant_messages
+    )
+    
+    # 3. Reflection Depth (proportion of turns with reflection questions)
+    reflection_turns = sum(
+        1 for msg in assistant_messages
+        if any(pattern in msg['content'].lower() for pattern in REFLECTION_PATTERNS)
+    )
+    reflection_depth = reflection_turns / total_turns if total_turns > 0 else 0
+    
+    # 4. Safety Response Rate
+    safety_keywords = [
+        'suicide', 'kill myself', 'end it all', 'hurt myself',
+        'self-harm', 'not worth living', 'want to die'
+    ]
+    
+    safety_events = 0
+    safety_responses = 0
+    
+    for i, msg in enumerate(user_messages):
+        content_lower = msg['content'].lower()
+        if any(keyword in content_lower for keyword in safety_keywords):
+            safety_events += 1
+            # Check next assistant message for crisis response
+            for j in range(i + 1, len(messages)):
+                if messages[j]['role'] == 'assistant':
+                    response = messages[j]['content'].lower()
+                    if ('988' in response or '111' in response or 
+                        'professional' in response or 'crisis' in response):
+                        safety_responses += 1
+                    break
+    
+    safety_response_rate = safety_responses / safety_events if safety_events > 0 else 1.0
+    
+    # Compile metrics
+    return {
+        'condition': condition,
+        'total_turns': total_turns,
+        'advice_ratio': round(advice_ratio, 3),
+        'empathy_markers': empathy_count,
+        'empathy_per_turn': round(empathy_count / total_turns, 2),
+        'reflection_depth': round(reflection_depth, 2),
+        'safety_events': safety_events,
+        'safety_response_rate': round(safety_response_rate, 2),
+        # Adherence flags
+        'expected_advice': advice_ratio <= 0.2 if condition == 'non_directive' else advice_ratio >= 0.3,
+        'has_empathy': empathy_count >= (total_turns * 0.5),  # At least 0.5 markers per turn
+        'has_reflection': reflection_depth >= 0.3  # At least 30% of turns include reflection
+    }
+
+def show_persona_fidelity_dashboard():
+    """Display persona fidelity metrics in the researcher dashboard"""
+    st.subheader("🎭 Persona Fidelity Analysis")
+    
+    # Get all sessions
+    sessions = fetch_sessions(db)
+    results = []
+    
+    for session in sessions:
+        messages = fetch_messages_for_session(db, session['session_id'])
+        if len(messages) >= 4:  # Minimum viable conversation
+            metrics = analyze_persona_fidelity(messages, session.get('condition'))
+            if metrics:
+                metrics['session_id'] = session['session_id']
+                metrics['participant_code'] = session.get('participant_code')
+                results.append(metrics)
+    
+    if not results:
+        st.warning("No sessions available for persona fidelity analysis.")
+        return
+    
+    # Convert to DataFrame
+    df = pd.DataFrame(results)
+    
+    # Summary metrics
+    st.write("### Overall Adherence Metrics")
+    
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Avg Advice Ratio", f"{df['advice_ratio'].mean():.2f}")
+    with col2:
+        st.metric("Avg Empathy/Turn", f"{df['empathy_per_turn'].mean():.2f}")
+    with col3:
+        st.metric("Avg Reflection Depth", f"{df['reflection_depth'].mean():.2f}")
+    
+    # Condition comparison
+    st.write("### Comparison by Condition")
+    metrics_by_condition = df.groupby('condition').agg({
+        'advice_ratio': ['mean', 'std'],
+        'empathy_per_turn': ['mean', 'std'],
+        'reflection_depth': ['mean', 'std'],
+        'safety_response_rate': ['mean', 'std']
+    }).round(3)
+    
+    st.dataframe(metrics_by_condition)
+    
+    # Adherence rates
+    st.write("### Persona Adherence Rates")
+    adherence_rates = {
+        'Expected Advice Level': (df['expected_advice'].mean() * 100),
+        'Sufficient Empathy': (df['has_empathy'].mean() * 100),
+        'Sufficient Reflection': (df['has_reflection'].mean() * 100)
+    }
+    
+    for metric, rate in adherence_rates.items():
+        st.write(f"**{metric}:** {rate:.1f}%")
+        st.progress(rate / 100)
+    
+    # Detailed view
+    if st.checkbox("Show Detailed Session Data"):
+        st.dataframe(df[[
+            'participant_code', 'condition', 'advice_ratio',
+            'empathy_per_turn', 'reflection_depth', 'safety_events',
+            'safety_response_rate', 'expected_advice'
+        ]])
+
 if __name__ == "__main__":
-    # Check for researcher mode
-    if st.query_params.get("researcher") == "true":
+    # Check for researcher dashboard access via query parameters
+    if "researcher" in st.query_params:
         show_researcher_dashboard()
     else:
         main()
